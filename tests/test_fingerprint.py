@@ -173,3 +173,14 @@ def test_load_cache_survives_a_damaged_file(tmp_path):
 
     assert load_cache(damaged) == {}
     assert load_cache(tmp_path / "absent.json") == {}
+
+
+def test_macro_enabled_workbooks_read_like_xlsx(tmp_path, make_workbook, formulas):
+    path = make_workbook(tmp_path / "sample_v1.xlsx", {"Cashflow": formulas(rows=5)})
+    macro_enabled = tmp_path / "sample_v1.xlsm"
+    macro_enabled.write_bytes(path.read_bytes())
+
+    fp = fingerprint(macro_enabled)
+
+    assert fp.error is None
+    assert set(fp.sheets) == {"Cashflow"}

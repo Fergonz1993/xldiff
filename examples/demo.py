@@ -21,7 +21,7 @@ def main():
         formula = "=Inputs!B2*Inputs!B3" if version < 3 else "=Inputs!B2*Inputs!B3-Inputs!B4"
         build_workbook(path, {
             "Inputs": [["Item", "Amount"], ["Units", 10 + version], ["Unit price", 20], ["Cost", 5]],
-            "Summary": [["Revenue"], [formula]],
+            "Summary": [["Model output"], [formula]],
         }, backend=args.backend)
     print(f"Created {len(paths)} invented workbooks in {args.directory}")
 

@@ -82,7 +82,7 @@ def print_lineage(versions: Sequence[Version], pivot: float) -> None:
     for version in versions:
         fp = version.fingerprint
         broken = fp.error is not None
-        mark = "KEEP" if version.decision == "keep" else "    "
+        mark = "KEEP" if version.decision == "keep" else "REVIEW" if broken else "    "
         flag = "PIVOT" if version.sim_prev is not None and version.sim_prev < pivot else ""
         sheets = "-" if broken else f"{len(fp.sheets)}"
         formulas = "-" if broken else f"{fp.total_formulas:,}"
@@ -98,7 +98,29 @@ def print_lineage(versions: Sequence[Version], pivot: float) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.command == "lineage":
+        if args.keep < 1:
+            parser.error("--keep must be a positive integer")
+        if not 0 <= args.pivot <= 1:
+            parser.error("--pivot must be between 0 and 1")
+        inputs = collect(args.paths, args.recursive)
+    elif args.command == "compare":
+        inputs = [args.a, args.b]
+    else:
+        inputs = args.files
+    if args.cache:
+        if os.path.splitext(args.cache)[1].lower() in {".xlsx", ".xlsm", ".xls", ".xlsb"}:
+            parser.error("--cache must name a JSON file, not a workbook")
+        for path in inputs:
+            aliases_input = os.path.realpath(args.cache) == os.path.realpath(path)
+            try:
+                aliases_input = aliases_input or os.path.samefile(args.cache, path)
+            except OSError:
+                pass
+            if aliases_input:
+                parser.error("--cache must not overwrite an input file")
     cache: dict[str, Any] | None = load_cache(args.cache) if args.cache else None
     status = OK
 
@@ -125,7 +147,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     print(f"  ! {fp.path}: {fp.error}")
 
     else:
-        paths = collect(args.paths, args.recursive)
+        paths = inputs
         if not paths:
             print("xldiff: no .xlsx files found in the given paths", file=sys.stderr)
             return USAGE

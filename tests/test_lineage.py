@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import zipfile
+import shutil
 
 from xldiff.lineage import group_versions, lineage, parse_date, parse_version
 
@@ -39,11 +40,12 @@ def test_dates_in_names():
 def test_files_of_the_same_version_are_one_version(tmp_path, make_workbook, data):
     a = make_workbook(tmp_path / "Acme Model v2.3.xlsx", {"Data": data(rows=3)})
     (tmp_path / "backup").mkdir()
-    b = make_workbook(tmp_path / "backup" / "Acme Model v2_3.xlsx", {"Data": data(rows=3)})
+    b = tmp_path / "backup" / "Acme Model v2_3.xlsx"
+    shutil.copyfile(a, b)
 
     groups = group_versions([a, b])
 
-    assert list(groups) == [((2, 3), 0)]
+    assert len(groups) == 1
     assert len(lineage([a, b])) == 1
 
 
@@ -114,7 +116,7 @@ def test_more_pivots_than_budget_keeps_the_steepest_drops(tmp_path, make_workboo
     assert {v.reason for v in kept} == {"newest", "before pivot"}
 
 
-def test_unreadable_files_sort_first_and_are_dropped(tmp_path, make_workbook, formulas, data):
+def test_unreadable_files_sort_first_and_require_review(tmp_path, make_workbook, formulas, data):
     paths = [make_workbook(tmp_path / f"model_v{i}.xlsx", model(i, formulas, data)) for i in range(1, 4)]
     broken = tmp_path / "model_v9.xlsx"
     broken.write_text("not a workbook at all")
@@ -122,13 +124,13 @@ def test_unreadable_files_sort_first_and_are_dropped(tmp_path, make_workbook, fo
     versions = lineage([*paths, broken], keep=5)
 
     assert versions[0].path == str(broken)  # nothing can be said about where it belongs
-    assert (versions[0].decision, versions[0].reason) == ("drop", "unreadable")
+    assert (versions[0].decision, versions[0].reason) == ("review", "unreadable")
     assert versions[0].sim_prev is None
     assert versions[-1].reason == "newest"
     assert [v.decision for v in versions[1:]] == ["keep", "keep", "keep"]
 
 
-def test_a_lineage_of_only_unreadable_files_keeps_the_newest_by_name(tmp_path):
+def test_a_lineage_of_only_unreadable_files_requires_review(tmp_path):
     first = tmp_path / "model_v1.xlsx"
     second = tmp_path / "model_v2.xlsx"
     first.write_text("not a workbook")
@@ -138,9 +140,25 @@ def test_a_lineage_of_only_unreadable_files_keeps_the_newest_by_name(tmp_path):
     versions = lineage([second, first], keep=5)
 
     assert [v.path for v in versions] == [str(first), str(second)]
-    assert [(v.decision, v.reason) for v in versions] == [("drop", "unreadable"), ("keep", "newest")]
+    assert [(v.decision, v.reason) for v in versions] == [("review", "unreadable"), ("review", "unreadable")]
     assert versions[-1].fingerprint.error is not None
 
 
 def test_an_empty_lineage_is_empty():
     assert lineage([]) == []
+
+
+def test_same_version_with_different_contents_preserves_both(tmp_path, make_workbook, data):
+    a = make_workbook(tmp_path / "model_v3.xlsx", {"Data": data(rows=3)})
+    other = tmp_path / "other"
+    other.mkdir()
+    b = make_workbook(other / "model_v3.xlsx", {"Data": data(rows=3, base=999)})
+    assert {entry.path for entry in lineage([a, b])} == {str(a), str(b)}
+
+
+def test_invalid_selection_parameters_fail():
+    import pytest
+
+    for keep, pivot in [(0, 0.6), (-1, 0.6), (5, -0.1), (5, 1.1), (5, float("nan"))]:
+        with pytest.raises(ValueError):
+            lineage([], keep=keep, pivot=pivot)

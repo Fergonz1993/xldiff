@@ -6,3 +6,7 @@ build/
 *.egg-info/
 .venv/
 .DS_Store
+.env
+.env.*
+!.env.example
+demo-workbooks/

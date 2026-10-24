@@ -4,7 +4,7 @@ from .fingerprint import K, Fingerprint, SheetStats, bottom_k, fingerprint, r1c1
 from .lineage import KEEP, PIVOT, Version, lineage, parse_date, parse_version
 from .similarity import Similarity, jaccard, similarity, sketch_jaccard
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "K",

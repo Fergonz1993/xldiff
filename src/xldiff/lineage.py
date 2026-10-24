@@ -9,6 +9,7 @@ from the newest down.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from dataclasses import dataclass
@@ -25,7 +26,7 @@ ISO_DATE = re.compile(r"(?<!\d)(\d{4})[-_.](\d{2})[-_.](\d{2})(?!\d)")
 DMY_DATE = re.compile(r"(?<!\d)(\d{2})[-_.](\d{2})[-_.](\d{4})(?!\d)")
 COMPACT_DATE = re.compile(r"(?<!\d)((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)")
 
-Decision = Literal["keep", "drop"]
+Decision = Literal["keep", "drop", "review"]
 
 
 @dataclass
@@ -98,7 +99,7 @@ def _mtime(path: str) -> int:
 
 
 def group_versions(paths: Iterable[str | os.PathLike[str]]) -> dict[Any, list[str]]:
-    """Group files that are the same version: the same v-token and date, or failing both, the same file name.
+    """Group byte-identical copies of the same named version.
 
     Two copies of one version in different folders are one version, so a lineage of eight versions kept in two
     places is still eight points on the timeline.
@@ -107,7 +108,13 @@ def group_versions(paths: Iterable[str | os.PathLike[str]]) -> dict[Any, list[st
     for raw in paths:
         path = os.fspath(raw)
         version, date = parse_version(path), parse_date(path)
-        key = (version, date) if version or date else _stem(path).lower()
+        try:
+            with open(path, "rb") as source:
+                identity = hashlib.file_digest(source, "sha256").hexdigest()
+        except OSError:
+            identity = os.path.abspath(path)
+        label = (version, date) if version or date else _stem(path).lower()
+        key = (label, identity)
         groups.setdefault(key, []).append(path)
     return groups
 
@@ -137,9 +144,12 @@ def lineage(
     """Fingerprint every file, order the lineage, and mark each version keep or drop.
 
     Ordering is by version token, then date in the name, then mtime. Files that cannot be read are ordered by
-    name and placed first, because nothing can be said about where they belong; each is dropped as unreadable
-    unless it is the only thing left, in which case the newest of them is kept.
+    name and placed first, marked for review rather than selected or discarded.
     """
+    if not isinstance(keep, int) or keep < 1:
+        raise ValueError("keep must be a positive integer")
+    if not 0 <= pivot <= 1:
+        raise ValueError("pivot must be between 0 and 1")
     entries: list[Version] = []
     for members in group_versions(paths).values():
         path = max(members, key=lambda p: (_mtime(p), p))
@@ -163,14 +173,14 @@ def lineage(
     for i in range(1, len(readable)):
         score = similarity(readable[i - 1].fingerprint, readable[i].fingerprint).score
         readable[i].sim_prev = score
-        sims[len(unreadable) + i] = score
+        sims[i] = score
 
-    chosen, before_pivot = _select(len(ordered), sims, keep, pivot)
-    for i, version in enumerate(ordered):
-        newest = i == len(ordered) - 1
-        if version.fingerprint.error is not None and not newest:
-            version.decision, version.reason = "drop", "unreadable"
-        elif newest:
+    for version in unreadable:
+        version.decision, version.reason = "review", "unreadable"
+    chosen, before_pivot = _select(len(readable), sims, keep, pivot)
+    for i, version in enumerate(readable):
+        newest = i == len(readable) - 1
+        if newest:
             version.decision, version.reason = "keep", "newest"
         elif i in chosen:
             version.decision, version.reason = "keep", "before pivot" if i in before_pivot else "fill"

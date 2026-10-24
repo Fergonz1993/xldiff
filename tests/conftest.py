@@ -5,27 +5,11 @@ No workbook is checked in: every fixture is generated with openpyxl into ``tmp_p
 
 from __future__ import annotations
 
+import os
+
 import pytest
-from openpyxl import Workbook
-from openpyxl.utils import get_column_letter
 
-
-def build_workbook(path, sheets):
-    """Write ``{"SheetName": [[row], [row], ...]}`` to ``path``.
-
-    Cells are placed by explicit coordinate, so an empty row in the list really leaves that row empty and the
-    row below still lands where the caller put it. A string starting with "=" is stored as a formula.
-    """
-    workbook = Workbook()
-    workbook.remove(workbook.active)
-    for name, rows in sheets.items():
-        sheet = workbook.create_sheet(title=name)
-        for row_index, row in enumerate(rows, start=1):
-            for column_index, value in enumerate(row, start=1):
-                if value is not None:
-                    sheet.cell(row=row_index, column=column_index, value=value)
-    workbook.save(path)
-    return path
+from examples.workbooks import build_workbook, column_letter
 
 
 def formula_rows(rows=20, start_row=1, first_column=1, base=100, factor=2, template="{col}{row}*{factor}", gap_after=None):
@@ -35,7 +19,7 @@ def formula_rows(rows=20, start_row=1, first_column=1, base=100, factor=2, templ
     is what Excel does when a row or a column is inserted: everything below shifts and the formulas follow their
     operands, so the block keeps saying the same thing.
     """
-    letter = get_column_letter(first_column)
+    letter = column_letter(first_column)
     padding = [None] * (first_column - 1)
     out = [[] for _ in range(start_row - 1)]
     row = start_row
@@ -67,3 +51,9 @@ def formulas():
 @pytest.fixture
 def data():
     return data_rows
+
+
+@pytest.fixture
+def formula_values_cached():
+    """MOG saves cached formula results; openpyxl intentionally does not."""
+    return os.environ.get("XLDIFF_TEST_BACKEND") == "mog"

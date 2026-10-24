@@ -15,7 +15,7 @@ from xldiff.fingerprint import (
 )
 
 
-def test_sheet_stats_count_cells_formulas_and_values(tmp_path, make_workbook, formulas, data):
+def test_sheet_stats_count_cells_formulas_and_values(tmp_path, make_workbook, formulas, data, formula_values_cached):
     path = make_workbook(tmp_path / "sample_v1.xlsx", {"Inputs": data(rows=5), "Cashflow": formulas(rows=20)})
 
     fp = fingerprint(path)
@@ -27,10 +27,10 @@ def test_sheet_stats_count_cells_formulas_and_values(tmp_path, make_workbook, fo
     assert fp.sheets["Cashflow"].cells == 40
     assert fp.sheets["Cashflow"].formulas == 20
     # openpyxl writes no cached result for a formula cell, so only the data column counts as a value.
-    assert fp.sheets["Cashflow"].values == 20
+    assert fp.sheets["Cashflow"].values == (40 if formula_values_cached else 20)
     assert fp.total_cells == 50
     assert len(fp.formula_sketch) == 20
-    assert len(fp.value_sketch) == 30
+    assert len(fp.value_sketch) == (50 if formula_values_cached else 30)
     assert fp.size > 0
 
 

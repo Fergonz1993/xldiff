@@ -42,7 +42,7 @@ def eight_versions(directory, make_workbook, formulas, data):
     ]
 
 
-def test_fingerprint_prints_a_table_and_json(tmp_path, make_workbook, formulas, data):
+def test_fingerprint_prints_a_table_and_json(tmp_path, make_workbook, formulas, data, formula_values_cached):
     path = make_workbook(tmp_path / "sample_v1.xlsx", {"Inputs": data(rows=5), "Cashflow": formulas(rows=20)})
 
     table = run("fingerprint", path).stdout
@@ -50,7 +50,7 @@ def test_fingerprint_prints_a_table_and_json(tmp_path, make_workbook, formulas, 
 
     payload = json.loads(run("fingerprint", path, "--json").stdout)
     assert len(payload) == 1
-    assert payload[0]["sheets"]["Cashflow"] == {"cells": 40, "formulas": 20, "values": 20}
+    assert payload[0]["sheets"]["Cashflow"] == {"cells": 40, "formulas": 20, "values": 40 if formula_values_cached else 20}
     assert len(payload[0]["formula_sketch"]) == 20
     assert payload[0]["error"] is None
 
@@ -154,3 +154,25 @@ def test_cache_is_written_and_reused(tmp_path, make_workbook, formulas, data):
 
     assert list(first[0]["sheets"]) == ["Cashflow"]
     assert list(second[0]["sheets"]) == ["Sentinel"]  # served from the cache, the file was not read again
+
+
+def test_cache_cannot_overwrite_an_input(tmp_path, make_workbook, data):
+    path = make_workbook(tmp_path / "model.xlsx", {"Data": data(rows=2)})
+    before = path.read_bytes()
+    run("fingerprint", path, "--cache", path, expect=2)
+    assert path.read_bytes() == before
+    alias = tmp_path / "cache.json"
+    alias.symlink_to(path)
+    run("lineage", path, "--cache", alias, expect=2)
+    assert path.read_bytes() == before
+    hardlink = tmp_path / "hardlink.json"
+    hardlink.hardlink_to(path)
+    run("compare", path, path, "--cache", hardlink, expect=2)
+    assert path.read_bytes() == before
+
+
+def test_invalid_selection_options_are_usage_errors(tmp_path, make_workbook, data):
+    path = make_workbook(tmp_path / "model.xlsx", {"Data": data(rows=2)})
+    for option, value in [("--keep", "0"), ("--keep", "-1"), ("--pivot", "nan"), ("--pivot", "2")]:
+        result = run("lineage", path, option, value, expect=2)
+        assert f"{option} must" in result.stderr

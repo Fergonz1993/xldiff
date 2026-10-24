@@ -7,6 +7,7 @@ import glob
 import json
 import os
 import sys
+import zipfile
 from typing import Any, Iterable, Sequence
 
 from . import __version__
@@ -90,11 +91,11 @@ def print_lineage(versions: Sequence[Version], pivot: float) -> None:
         print(
             f"  {mark} {version.label[:16]:<16}"
             f" sheets={sheets:>3} formulas={formulas:>7} values={values:>9}"
-            f" sim_prev={_fmt(version.sim_prev):<6} {flag:<5} {version.reason:<12} {os.path.basename(version.path)}"
+            f" sim_prev={_fmt(version.sim_prev):<6} {flag:<5} {version.reason:<12} {version.path}"
         )
     for version in versions:
         if version.fingerprint.error:
-            print(f"  ! {os.path.basename(version.path)}: {version.fingerprint.error}")
+            print(f"  ! {version.path}: {version.fingerprint.error}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -111,7 +112,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         inputs = args.files
     if args.cache:
-        if os.path.splitext(args.cache)[1].lower() in {".xlsx", ".xlsm", ".xls", ".xlsb"}:
+        if os.path.splitext(args.cache)[1].lower() in {".xlsx", ".xlsm", ".xls", ".xlsb", ".xltx", ".xltm", ".xlam"} or zipfile.is_zipfile(args.cache):
             parser.error("--cache must name a JSON file, not a workbook")
         for path in inputs:
             aliases_input = os.path.realpath(args.cache) == os.path.realpath(path)

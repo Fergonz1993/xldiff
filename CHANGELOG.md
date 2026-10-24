@@ -15,7 +15,10 @@ newer and has no runtime dependencies.
   suggestions, and unreadable inputs still produce exit code 1.
 - Invalid `keep` and `pivot` values are rejected. The CLI reports usage errors.
 - The CLI rejects cache destinations that could overwrite an input workbook,
-  including aliases to the same existing file.
+  including aliases to the same existing file, other existing workbook archives,
+  and Excel template/add-in extensions. Cache writes replace files atomically.
+- Byte-identical unreadable copies remain separate review entries. Text output
+  includes paths to distinguish matching filenames in different folders.
 
 ### Added
 

@@ -162,3 +162,34 @@ def test_invalid_selection_parameters_fail():
     for keep, pivot in [(0, 0.6), (-1, 0.6), (5, -0.1), (5, 1.1), (5, float("nan"))]:
         with pytest.raises(ValueError):
             lineage([], keep=keep, pivot=pivot)
+
+
+def test_unreadable_input_does_not_consume_a_selection_slot(tmp_path, make_workbook, formulas, data):
+    paths = [
+        make_workbook(
+            tmp_path / f"model_v{i}.xlsx",
+            model(i, formulas, data, template=REWRITE if i >= 5 else "{col}{row}*{factor}"),
+        )
+        for i in range(1, 9)
+    ]
+    broken = tmp_path / "model_v9.xlsx"
+    broken.write_text("not a workbook")
+
+    versions = lineage([*paths, broken], keep=2)
+
+    assert (versions[0].decision, versions[0].reason) == ("review", "unreadable")
+    assert [v.label for v in versions if v.decision == "keep"] == ["v4", "v8"]
+
+
+def test_identical_unreadable_copies_both_require_review(tmp_path):
+    a = tmp_path / "model_v9.xlsx"
+    other = tmp_path / "other"
+    other.mkdir()
+    b = other / a.name
+    a.write_bytes(b"")
+    b.write_bytes(b"")
+
+    versions = lineage([a, b])
+
+    assert {v.path for v in versions} == {str(a), str(b)}
+    assert all(v.decision == "review" and v.reason == "unreadable" for v in versions)

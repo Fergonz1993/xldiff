@@ -132,6 +132,15 @@ def test_unreadable_input_exits_one_and_still_reports_the_rest(tmp_path, make_wo
 
     payload = json.loads(run("lineage", good, broken, empty, "--json", expect=1).stdout)
     assert payload["keep"] == [str(good)]
+    unreadable = [v for v in payload["versions"] if v["fingerprint"]["error"]]
+    assert len(unreadable) == 2
+    assert all(v["decision"] == "review" and v["reason"] == "unreadable" for v in unreadable)
+    assert timeline.count("REVIEW") == 2
+
+    only_broken = json.loads(run("lineage", broken, empty, "--json", expect=1).stdout)
+    assert only_broken["keep"] == []
+    assert len(only_broken["versions"]) == 2
+    assert all(v["decision"] == "review" for v in only_broken["versions"])
 
 
 def test_usage_errors_exit_two(tmp_path):
@@ -176,3 +185,23 @@ def test_invalid_selection_options_are_usage_errors(tmp_path, make_workbook, dat
     for option, value in [("--keep", "0"), ("--keep", "-1"), ("--pivot", "nan"), ("--pivot", "2")]:
         result = run("lineage", path, option, value, expect=2)
         assert f"{option} must" in result.stderr
+
+
+def test_lineage_text_identifies_same_names_in_different_folders(tmp_path, make_workbook, data):
+    a = make_workbook(tmp_path / "model_v3.xlsx", {"Data": data(rows=2)})
+    other = tmp_path / "other"
+    other.mkdir()
+    b = make_workbook(other / "model_v3.xlsx", {"Data": data(rows=2, base=900)})
+    output = run("lineage", tmp_path, "--recursive", "--keep", "1").stdout
+    assert str(a) in output
+    assert str(b) in output
+
+
+def test_cache_cannot_overwrite_a_workbook_outside_the_inputs(tmp_path, make_workbook, data):
+    a = make_workbook(tmp_path / "model.xlsx", {"Data": data(rows=2)})
+    other = make_workbook(tmp_path / "other.xlsx", {"Data": data(rows=2, base=900)})
+    before = other.read_bytes()
+    alias = tmp_path / "cache.json"
+    alias.symlink_to(other)
+    run("fingerprint", a, "--cache", alias, expect=2)
+    assert other.read_bytes() == before

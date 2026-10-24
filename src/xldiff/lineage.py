@@ -153,18 +153,21 @@ def lineage(
     entries: list[Version] = []
     for members in group_versions(paths).values():
         path = max(members, key=lambda p: (_mtime(p), p))
-        entries.append(
-            Version(
-                path=path,
-                version=parse_version(path),
-                date=parse_date(path),
-                mtime=_mtime(path),
-                fingerprint=fingerprint_cached(path, cache),
-                sim_prev=None,
-                decision="drop",
-                reason="dropped",
+        fp = fingerprint_cached(path, cache)
+        # Every unreadable path needs its own review, even for identical bytes.
+        for member in members if fp.error is not None else [path]:
+            entries.append(
+                Version(
+                    path=member,
+                    version=parse_version(member),
+                    date=parse_date(member),
+                    mtime=_mtime(member),
+                    fingerprint=fp if member == path else fingerprint_cached(member, cache),
+                    sim_prev=None,
+                    decision="drop",
+                    reason="dropped",
+                )
             )
-        )
     readable = sorted((e for e in entries if e.fingerprint.error is None), key=lambda e: (e.version, e.date, e.mtime))
     unreadable = sorted((e for e in entries if e.fingerprint.error is not None), key=lambda e: _stem(e.path).lower())
     ordered = unreadable + readable

@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 import zipfile
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable
@@ -292,8 +293,18 @@ def load_cache(path: str | os.PathLike[str]) -> dict[str, Any]:
 
 
 def save_cache(path: str | os.PathLike[str], cache: dict[str, Any]) -> None:
-    with open(path, "w", encoding="utf8") as fh:
-        json.dump(cache, fh)
+    """Replace the cache atomically without writing through file links."""
+    path = os.path.abspath(os.fspath(path))
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf8", dir=os.path.dirname(path),
+                                         prefix=".xldiff-cache-", suffix=".tmp", delete=False) as fh:
+            temporary = fh.name
+            json.dump(cache, fh)
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None and os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def fingerprint_cached(path: str | os.PathLike[str], cache: dict[str, Any] | None, k: int = K) -> Fingerprint:

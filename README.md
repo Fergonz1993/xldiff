@@ -169,7 +169,10 @@ in another program. Do not use the `keep` list as deletion authority.
 
 The cache stores fingerprints keyed by path, file size, and modification time.
 The CLI rejects a cache destination that would overwrite an input workbook,
-including an alias to the same existing file. Use a separate JSON destination.
+including an alias to the same existing file. It also rejects existing ZIP
+archives, including workbooks reached through a different filename. Cache writes
+replace the destination atomically instead of writing through file links.
+Use a separate JSON destination.
 A changed workbook with the same size and modification time can produce a
 stale cache hit. Omit `--cache` for a fresh read. Cache files include paths,
 sheet names, counts, and hashes. Keep them private when that metadata is private.
@@ -240,6 +243,9 @@ the newest readable version and the readable version before each pivot.
 It fills remaining places from newest to oldest, up to `--keep`.
 If there are too many pivots, the newest version and the steepest drops take
 priority. Unreadable inputs sort first by name and require separate review.
+Each unreadable path remains visible, including byte-identical damaged copies.
+Text output includes file paths so matching filenames in different folders can
+be distinguished.
 
 ## Limits
 
@@ -257,6 +263,8 @@ priority. Unreadable inputs sort first by name and require separate review.
   score can hide a material change. This is not a cell-by-cell diff.
 - Filename parsing cannot establish the true history of a model. A folder with
   unrelated models does not become a meaningful lineage because the tool orders it.
+- Compare saved, stable files. Editing or synchronizing a workbook during a run
+  can change its contents between reads; xldiff does not lock or snapshot inputs.
 
 ## Updates
 

@@ -184,3 +184,17 @@ def test_macro_enabled_workbooks_read_like_xlsx(tmp_path, make_workbook, formula
 
     assert fp.error is None
     assert set(fp.sheets) == {"Cashflow"}
+
+
+def test_save_cache_does_not_write_through_a_link(tmp_path):
+    original = tmp_path / "original.json"
+    original.write_text('{"original": true}')
+    for name, symbolic in [("symlink.json", True), ("hardlink.json", False)]:
+        alias = tmp_path / name
+        if symbolic:
+            alias.symlink_to(original)
+        else:
+            alias.hardlink_to(original)
+        save_cache(alias, {"new": True})
+        assert original.read_text() == '{"original": true}'
+        assert load_cache(alias) == {"new": True}

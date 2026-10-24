@@ -193,3 +193,18 @@ def test_identical_unreadable_copies_both_require_review(tmp_path):
 
     assert {v.path for v in versions} == {str(a), str(b)}
     assert all(v.decision == "review" and v.reason == "unreadable" for v in versions)
+
+
+def test_cached_unique_versions_do_not_read_workbook_contents(tmp_path, make_workbook, data, monkeypatch):
+    import hashlib
+
+    paths = [make_workbook(tmp_path / f"model_v{i}.xlsx", {"Data": data(rows=2)}) for i in (1, 2)]
+    cache = {}
+    lineage(paths, cache=cache)
+
+    def unexpected_read(*args, **kwargs):
+        raise AssertionError("A cached unique version should not reread workbook contents")
+
+    monkeypatch.setattr(hashlib, "file_digest", unexpected_read)
+    monkeypatch.setattr(zipfile, "ZipFile", unexpected_read)
+    assert len(lineage(paths, cache=cache)) == 2

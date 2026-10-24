@@ -19,6 +19,7 @@ newer and has no runtime dependencies.
   and Excel template/add-in extensions. Cache writes replace files atomically.
 - Byte-identical unreadable copies remain separate review entries. Text output
   includes paths to distinguish matching filenames in different folders.
+- Cached scans avoid content hashing when a version has no duplicate candidate.
 
 ### Added
 

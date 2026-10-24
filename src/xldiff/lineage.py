@@ -104,18 +104,24 @@ def group_versions(paths: Iterable[str | os.PathLike[str]]) -> dict[Any, list[st
     Two copies of one version in different folders are one version, so a lineage of eight versions kept in two
     places is still eight points on the timeline.
     """
-    groups: dict[Any, list[str]] = {}
+    candidates: dict[Any, list[str]] = {}
     for raw in paths:
         path = os.fspath(raw)
         version, date = parse_version(path), parse_date(path)
-        try:
-            with open(path, "rb") as source:
-                identity = hashlib.file_digest(source, "sha256").hexdigest()
-        except OSError:
-            identity = os.path.abspath(path)
         label = (version, date) if version or date else _stem(path).lower()
-        key = (label, identity)
-        groups.setdefault(key, []).append(path)
+        candidates.setdefault(label, []).append(path)
+    groups: dict[Any, list[str]] = {}
+    for label, members in candidates.items():
+        if len(members) == 1:
+            groups[(label, None)] = members
+            continue
+        for path in members:
+            try:
+                with open(path, "rb") as source:
+                    identity = hashlib.file_digest(source, "sha256").hexdigest()
+            except OSError:
+                identity = os.path.abspath(path)
+            groups.setdefault((label, identity), []).append(path)
     return groups
 
 

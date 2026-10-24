@@ -87,6 +87,12 @@ published into a separate repository under the public project name. Preserve
 the original development steps; a new GitHub repository does not require an
 empty Git history. See [GitHub's history cleanup limits](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
 
+An old checkout can reintroduce the removed metadata if its history is merged
+into the public repository. Use a fresh clone of the public repository for
+future work, or verify that an existing checkout has the cleaned history.
+Keep any checkout of the original history connected only to the private
+recovery repository. Do not merge the private recovery history into public work.
+
 ## Audit the repository controls
 
 Before publication, inspect the repository settings and read them back after

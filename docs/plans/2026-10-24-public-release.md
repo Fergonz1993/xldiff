@@ -42,7 +42,10 @@ documentation; the completed history scan found no credentials or client files.
 
 Use a GitHub release rather than PyPI because PyPI's xldiff name belongs to an
 unrelated project. Preserve the six development commits with sanitized metadata
-instead of replacing them with an empty history. Keep the release process local;
+instead of replacing them with an empty history. GitHub can retain old commit
+pages after a rewrite, so retain the original repository privately under a new
+private name and create a separate repository at the public xldiff name. Push
+only the sanitized history to that new repository. Keep the release process local;
 GitHub Actions stays disabled. Defaults for similarity are conventions, not a
 statistical guarantee that a workbook is safe to discard.
 
@@ -81,7 +84,9 @@ generation for contributors who do not have this local tool.
 Install the built wheel into a fresh environment and run its commands on
 synthetic workbooks. Review the final code and distribution contents. Sanitize
 all retained commit and annotated-tag metadata, then verify unchanged historical
-trees. Push only the intended branch and tags with expected-old-ref checks.
+trees. Verify that the original remote has not changed, preserve it privately,
+and push only the intended sanitized branch and tags to the new repository.
+Disable contribution features and Actions on the new repository before pushing.
 Verify GitHub controls again before changing visibility. Publish the tagged
 release, assets, checksums, and tested installation command. Confirm public
 downloads without authentication. Leave the original backup private.
@@ -123,4 +128,5 @@ verified, and the owner has a short guide to maintenance and gradual reopening.
 - Existing source and tests in the original six-commit development history.
 - GitHub: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/disabling-pull-requests
 - GitHub API: https://docs.github.com/en/rest/repos/repos#update-a-repository
+- History cleanup limits: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository
 - Existing unrelated distribution: https://pypi.org/project/xldiff/

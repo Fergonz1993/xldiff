@@ -81,6 +81,12 @@ Before an authorized history rewrite, make and verify a private recovery bundle.
 Preserve the development sequence and historical file contents when removing
 private metadata. Routine releases do not require a history rewrite.
 
+GitHub can retain old commit pages after a rewrite. Before the first public
+release, the original repository stays private and the cleaned history is
+published into a separate repository under the public project name. Preserve
+the original development steps; a new GitHub repository does not require an
+empty Git history. See [GitHub's history cleanup limits](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
+
 ## Audit the repository controls
 
 Before publication, inspect the repository settings and read them back after
